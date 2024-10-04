@@ -301,7 +301,7 @@ def construct_word_list_from_text(words, word_dict, src, dest, service_urls, wor
         word_time = 1
         for index, word in enumerate(words):
             if (index % 25 == 0):
-                print(f"Current word number: {index}/{len(words)}. Remaining time: {word_time / 1000 * len(words)}", flush=True)
+                print(f"Current word number: {index}/{len(words)}. Remaining time: {word_time * (len(words)-index):.2f}s", flush=True)
             
             t1 = time.time()
             translation = argostranslate.translate.translate(word, from_code, to_code)
@@ -429,8 +429,8 @@ def write_translation(book_soup, tmp, book_path, out_path):
         stdout, stderr = process.communicate()
 
         if stderr:
-            er_msg = "Error from ebook-convert. Error message:\n\n\t" + stderr.decode("utf-8")
-            raise Exception(er_msg)
+            er_msg = f"Error from ebook-convert. Error message:\n\n\t{stderr.decode("utf-8")}\nNot exiting at this time."
+            print(er_msg)
 
     tmp_dir.cleanup()
 
