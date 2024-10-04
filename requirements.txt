@@ -1,3 +1,4 @@
-googletrans
+argostranslate
 bs4
 nltk
+requests

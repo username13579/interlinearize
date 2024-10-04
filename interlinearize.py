@@ -1,20 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# ---
-# jupyter:
-#   jupytext:
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.4.2
-#   kernelspec:
-#     display_name: Python 3
-#     language: python
-#     name: python3
-# ---
-
-from googletrans import Translator
+import argostranslate.package
+import argostranslate.translate
 import math
 from threading import Thread
 from queue import Queue
@@ -295,62 +280,48 @@ def construct_word_list_from_text(words, word_dict, src, dest, service_urls, wor
     words = list( set(words) - words_already_found )
     
     # Translate!
-
-    words_per_thread = int(len(words) / len(service_urls))
-
-    thread_word_list = []
-    for i in range(len(service_urls)):
-        if i != len(service_urls) - 1:
-            thread_word_list.append( words[ i*words_per_thread: (i+1)*words_per_thread ] )
-        else:
-            thread_word_list.append( words[ i*words_per_thread : ] )
-
-    def translate_words(words, src, dest, words_per_request, service_url, que):
-        t1 = time.time()
+    def translate_words(words, src, dest):
         translations = {}
+        from_code = src
+        to_code = dest
 
-        translator = Translator(service_urls=[service_url])
+        print("Installing Argos")
+        # Download and install Argos Translate package
+        argostranslate.package.update_package_index()
+        available_packages = argostranslate.package.get_available_packages()
+        print(available_packages)
+        package_to_install = next(
+            filter(
+                lambda x: x.from_code == from_code and x.to_code == to_code, available_packages
+            )
+        )
+        argostranslate.package.install_from_path(package_to_install.download())
+        print("Finished Installing Argos")
+        print(f"Number of words: {len(words)}")
+        word_time = 1
+        for index, word in enumerate(words):
+            if (index % 25 == 0):
+                print(f"Current word number: {index}/{len(words)}. Remaining time: {word_time / 1000 * len(words)}", flush=True)
+            
+            t1 = time.time()
+            translation = argostranslate.translate.translate(word, from_code, to_code)
+            translations[word] = translation.lower()
+            t2 = time.time()
+            word_time = t2 - t1
 
-        for i in range( math.ceil(len(words) / words_per_request) ):
-            if (i+1)*words_per_request <= len(words):
-                words_to_translate = words[ i*words_per_request : (i+1)*words_per_request ]
-            else:
-                words_to_translate = words[ i*words_per_request :  ]
+        return translations
 
-            ts = translator.translate(words_to_translate, src=src, dest=dest)
-
-            for translation in ts:
-                translations[translation.origin] = translation.text.lower()
-
-        que.put(translations)
-        t2 = time.time()
-
-
-    que = Queue()
-
-    que_times = Queue()
-
-    threads = []
-    for thread_words, service_url in zip(thread_word_list, service_urls):
-        thread = Thread(target=translate_words, args=( thread_words, src, dest, words_per_request, service_url, que ))
-        threads.append(thread)
-        thread.start()
-
-    for thread in threads:
-        thread.join()
-        
-    for i in range(len(threads)):
-        t_dict = que.get()
-        word_dict.update(t_dict)
+    translations = translate_words(words, src, dest)
+    word_dict.update(translations)
 
 
 # -
 
 def add_subtitle_to_text(text, word_dict, class_translation, class_word, class_paragraph, class_space):
-    word_list = str(text).split()
+    words = str(text).split()
     tag_list = []
 
-    for w in word_list:
+    for w in words:
         w_translated = lookup_word(word_dict, w, ignorable_punctuation_tokens)
         trans_status = ""
         word_status = ""
@@ -376,8 +347,8 @@ def add_subtitle_to_text(text, word_dict, class_translation, class_word, class_p
             space_tag.insert(0, "&nbsp;")
             tag_list.append(NavigableString(" "))
         
-    if len(word_list) > 0:
-        word_list = word_list[:-1] # Remove last space
+    if len(words) > 0:
+        words = words[:-1] # Remove last space
     
     return tag_list
 
@@ -562,10 +533,10 @@ tmp_dir, book_soup = convert_book_to_HTML(book_path)
 
 word_dict = load_word_dict(src_lan, dest_lan)
 
-word_list = get_word_list(book_soup.text, ignorable_punctuation_tokens)
+words = get_word_list(book_soup.text, ignorable_punctuation_tokens)
 
-print("Finding translations of new words")
-construct_word_list_from_text(word_list, word_dict, src_lan, dest_lan, service_urls, words_per_request)
+print("Finding translations of new words", flush=True)
+construct_word_list_from_text(words, word_dict, src_lan, dest_lan, service_urls, words_per_request)
 
 save_word_dict(src_lan, dest_lan, word_dict)
 # -
@@ -573,7 +544,7 @@ save_word_dict(src_lan, dest_lan, word_dict)
 # Construct translated book
 
 # +
-print("Constructing interlinearized version")
+print("Constructing interlinearized version", flush=True)
 
 add_subtitle_to_soup(book_soup, word_dict, class_translation, class_word, class_paragraph, class_space)
 

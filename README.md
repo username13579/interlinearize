@@ -1,3 +1,18 @@
+# To run
+## First time:
+Build the image:
+`podman build . -t interlinearize`
+Alternately build in layers if doing dev:
+`podman build -f Dockerfile-base . -t interlinearize-base`
+Then do below after each python change
+`podman build -f Dockerfile-layers . -t interlinearize`
+
+## To interlinearize
+1. Put your source book in the /target/in folder
+1. Run
+`. run.sh es en`
+where `es` and `en` are source and target languages.
+
 # Interlinearizer
 
 An [interlinear](https://www.wikiwand.com/en/Interlinear_gloss) book is an

@@ -1,0 +1,6 @@
+FROM interlinearize-base
+
+# RUN rm -rf /interlinearize.py
+COPY ./* /
+
+CMD ["python", "interlinearize.py"]
